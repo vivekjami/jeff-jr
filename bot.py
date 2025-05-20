@@ -345,7 +345,6 @@ async def webhook_handler(request):
 
 async def setup_webhook():
     """Set up the Telegram webhook."""
-    # Replace with your Render app's public URL
     webhook_url = f"https://{os.environ.get('RENDER_EXTERNAL_HOSTNAME')}/webhook"
     await application.bot.set_webhook(url=webhook_url)
     logger.info(f"Webhook set to {webhook_url}")
@@ -386,8 +385,6 @@ def main() -> None:
     """Start the bot with webhook."""
     import asyncio
     asyncio.run(start_webhook())
-    # Keep the application running
-    asyncio.get_event_loop().run_forever()
 
 if __name__ == "__main__":
     main()
