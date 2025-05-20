@@ -2,7 +2,7 @@
 
 ![Python](https://img.shields.io/badge/Python-3.9+-blue.svg) ![Telegram](https://img.shields.io/badge/Telegram-Bot_API-brightgreen.svg) ![Supabase](https://img.shields.io/badge/Supabase-Database-blue.svg) ![Google AI](https://img.shields.io/badge/Google-Gemini_AI-orange.svg) ![Railway](https://img.shields.io/badge/Railway-Deployed-purple.svg) ![Render](https://img.shields.io/badge/Render-Alternative-blue.svg)
 
-**Jeff Jr** is a Telegram bot that acts as a no-nonsense venture capitalist, guiding startup founders to refine their MVPs and revenue plans with blunt, constructive feedback. Built with Python, it demonstrates proficiency in API integration, database management, and cloud deployment. Jeff Jr remembers user projects, asks tough questions, and provides actionable advice to help startups stand out in the competitive ecosystem.
+**Jeff Jr**  is a Telegram bot that acts as a no-nonsense venture capitalist, guiding startup founders to refine their MVPs and revenue plans with blunt, constructive feedback. Built in just less than 10 hours, it demonstrates proficiency in Python, API integration, database management, and cloud deployment on free-tier platforms. Jeff Jr remembers user projects, asks tough questions, and provides actionable advice to stand out in the startup ecosystem.
 
 ## 🎯 Project Goals
 - **Mentor Developers**: Helps users build market-ready MVPs with direct, no-sugarcoating feedback.

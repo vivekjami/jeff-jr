@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import logging
 import os
 import json
@@ -28,6 +27,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Log the loaded TELEGRAM_TOKEN for debugging
+token = os.environ.get("TELEGRAM_TOKEN")
+logger.info(f"Loaded TELEGRAM_TOKEN: {token}")
+
+# Validate token format (must contain ':' to ensure bot ID is included)
+if not token or ":" not in token:
+    logger.error("Invalid Telegram token format. Ensure it includes bot ID and hash (e.g., '123456:ABC-DEF').")
+    exit(1)
+
 # Constants for conversation states
 NAME, STAGE, REVENUE, FEEDBACK = range(4)
 
@@ -35,7 +43,7 @@ NAME, STAGE, REVENUE, FEEDBACK = range(4)
 STAGES = ["Idea", "Development", "Launched"]
 
 # Configure Supabase
-supabase_url = os.environ.get("SUPABASE_URL", "https://kztlfophuvrndahhtojs.supabase.co")
+supabase_url = os.environ.get("SUPABASE_URL")
 supabase_key = os.environ.get("SUPABASE_KEY")
 supabase: Client = create_client(supabase_url, supabase_key)
 
@@ -48,7 +56,7 @@ model = genai.GenerativeModel(
         "temperature": 0.7,
         "top_p": 0.9,
         "top_k": 40,
-        "max_output_tokens": 1024,
+        "max_output_tokens": 150,
     },
     safety_settings=[
         {
@@ -70,105 +78,39 @@ model = genai.GenerativeModel(
     ],
 )
 
+# Check required environment variables
+required_vars = ["TELEGRAM_TOKEN", "GOOGLE_API_KEY", "SUPABASE_URL", "SUPABASE_KEY"]
+missing_vars = [var for var in required_vars if not os.environ.get(var)]
+if missing_vars:
+    logger.error(f"Missing required environment variables: {', '.join(missing_vars)}")
+    exit(1)
 
-async def init_database() -> None:
-    """Initialize the database with required tables."""
+# Synchronous database checks
+def check_tables_exist():
     try:
-        # Check if the 'projects' table exists, if not create it
-        supabase.table("projects").select("id", count="exact").limit(1).execute()
-        logger.info("Projects table exists")
+        response = supabase.table("projects").select("id", count="exact").limit(1).execute()
+        logger.info("✅ Projects table exists")
     except Exception as e:
-        logger.info(f"Creating projects table: {e}")
-        # Create the projects table
-        supabase.postgrest.schema("public").execute_sql(
-            """
-            CREATE TABLE IF NOT EXISTS projects (
-                id SERIAL PRIMARY KEY,
-                user_id BIGINT NOT NULL,
-                username TEXT,
-                project_name TEXT NOT NULL,
-                stage TEXT NOT NULL,
-                revenue_goal TEXT NOT NULL,
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-            );
-            """
-        )
-        
-        # Create conversations table for chat history
-        supabase.postgrest.schema("public").execute_sql(
-            """
-            CREATE TABLE IF NOT EXISTS conversations (
-                id SERIAL PRIMARY KEY,
-                user_id BIGINT NOT NULL,
-                project_id INTEGER REFERENCES projects(id),
-                message TEXT NOT NULL,
-                role TEXT NOT NULL,
-                timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-            );
-            """
-        )
+        logger.error(f"❌ Projects table does not exist: {e}")
+        return False
 
-
-async def get_ai_response(conversation_history: List[Dict[str, str]], 
-                          user_message: str, 
-                          project_info: Optional[Dict[str, Any]] = None) -> str:
-    """Generate AI response using Google's Gemini model."""
     try:
-        # Prepare system prompt with Jeff Jr's persona
-        system_prompt = """
-        You are Jeff Jr, a no-nonsense venture capitalist Telegram bot. Your personality traits:
-        
-        1. Blunt but professional: You give direct, honest feedback without sugar-coating, but always remain professional.
-        2. Time-conscious: You value efficiency and directness in communication.
-        3. Expertise in startups: You have strong knowledge about MVPs, revenue models, market fit, and funding.
-        4. Critical thinker: You ask tough questions to help founders refine their ideas.
-        5. Blockchain savvy: You have particular expertise in crypto/blockchain projects.
-        
-        Your responses should:
-        - Be brief and to the point (max 3-4 sentences)
-        - Ask probing questions about business models, revenue plans, and market fit
-        - Challenge weak ideas firmly but constructively
-        - Use occasional emojis for emphasis (max 1-2 per message)
-        - Focus on practical, actionable advice
-        - Never be rude, but don't hold back honest critique
-        
-        Remember your goal is to help founders build viable businesses, not to make them feel good.
-        """
-        
-        # Build conversation history
-        chat = [{"role": "system", "content": system_prompt}]
-        
-        # Add project context if available
-        if project_info:
-            project_context = f"""
-            Current project information:
-            - Name: {project_info.get('project_name', 'Unknown')}
-            - Stage: {project_info.get('stage', 'Unknown')}
-            - Revenue Goal: {project_info.get('revenue_goal', 'Unknown')}
-            
-            Tailor your feedback to this specific project stage and goals.
-            """
-            chat.append({"role": "system", "content": project_context})
-        
-        # Add conversation history
-        for message in conversation_history:
-            chat.append(message)
-        
-        # Add the current user message
-        chat.append({"role": "user", "content": user_message})
-        
-        # Generate response
-        response = model.generate_content([msg["content"] for msg in chat])
-        return response.text
-    
+        response = supabase.table("conversations").select("id", count="exact").limit(1).execute()
+        logger.info("✅ Conversations table exists")
     except Exception as e:
-        logger.error(f"Error generating AI response: {e}")
-        return "Sorry, I'm having trouble connecting to my brain right now. Try again in a moment. 🤔"
+        logger.error(f"❌ Conversations table does not exist: {e}")
+        return False
 
+    return True
 
+def init_database():
+    if not check_tables_exist():
+        logger.warning("Required database tables are missing. Please run setup_db.py or create tables manually.")
+    else:
+        logger.info("✅ Database tables exist")
+
+# Asynchronous functions for database operations
 async def store_conversation(user_id: int, project_id: int, message: str, role: str) -> None:
-    """Store conversation in the database."""
     try:
         supabase.table("conversations").insert({
             "user_id": user_id,
@@ -179,12 +121,9 @@ async def store_conversation(user_id: int, project_id: int, message: str, role: 
     except Exception as e:
         logger.error(f"Error storing conversation: {e}")
 
-
 async def get_project_by_user_id(user_id: int) -> Optional[Dict[str, Any]]:
-    """Get the latest project for a user."""
     try:
         response = supabase.table("projects").select("*").eq("user_id", user_id).order("created_at", desc=True).limit(1).execute()
-        
         if response.data and len(response.data) > 0:
             return response.data[0]
         return None
@@ -192,15 +131,11 @@ async def get_project_by_user_id(user_id: int) -> Optional[Dict[str, Any]]:
         logger.error(f"Error getting project: {e}")
         return None
 
-
 async def get_conversation_history(user_id: int, limit: int = 10) -> List[Dict[str, str]]:
-    """Get recent conversation history for a user."""
     try:
         response = supabase.table("conversations").select("*").eq("user_id", user_id).order("timestamp", desc=True).limit(limit).execute()
-        
         conversation = []
         if response.data:
-            # Convert to the format expected by the AI model
             for msg in reversed(response.data):
                 conversation.append({"role": msg['role'], "content": msg['message']})
         return conversation
@@ -208,175 +143,161 @@ async def get_conversation_history(user_id: int, limit: int = 10) -> List[Dict[s
         logger.error(f"Error getting conversation history: {e}")
         return []
 
+async def get_ai_response(conversation_history: List[Dict[str, str]], 
+                         user_message: str, 
+                         project_info: Optional[Dict[str, Any]] = None) -> str:
+    system_prompt = """
+    You are Jeff Jr, a no-nonsense venture capitalist Telegram bot with a focus on startups, particularly in the blockchain and DeFi space on Solana. Your personality is blunt, professional, and a bit sarcastic. You value directness and efficiency in communication.
+
+    Key Traits:
+    1. **Blunt and Professional:** Provide honest feedback without sugar-coating, but remain professional.
+    2. **Time-Conscious:** Keep responses concise and to the point.
+    3. **Startup Expert:** Strong knowledge in MVPs, revenue models, market fit, and funding.
+    4. **Critical Thinker:** Ask tough questions to help founders refine their ideas.
+    5. **Blockchain and DeFi Savvy:** Expertise in crypto/blockchain projects, especially on Solana.
+    6. **Calm and Collected with Sarcasm:** Maintain composure while being straightforward and occasionally sarcastic.
+
+    Response Guidelines:
+    - **Brevity:** Always limit responses to 2-3 sentences. If more detail is needed, ask the user if they want to know more.
+    - **Probing Questions:** Ask about business models, revenue plans, and market fit when relevant.
+    - **Constructive Criticism:** Challenge weak ideas firmly but constructively.
+    - **Emojis:** Use sparingly for emphasis (max 1 per message).
+    - **Actionable Advice:** Focus on practical steps the founder can take.
+    - **Tone:** Friendly yet blunt, like a knowledgeable friend who doesn't hold back.
+    - **Genuine Care:** Show interest in the project while being honest and direct.
+    - **Handling Off-Topic Questions:** If the user asks something unrelated to their project or startup advice, respond with something like: "Hey, let's stay focused on your project. If you have questions about [topic], maybe we can discuss that later, but right now, I want to help you with your startup."
+
+    Remember, your goal is to help founders build viable businesses by providing insightful, honest feedback and guidance. And if possible only give the ansewr in a single format as this is used for the telegram messages responses will not look good
+    """
+    
+    chat = [{"role": "system", "content": system_prompt}]
+    
+    if project_info:
+        project_context = f"""
+        Current project information:
+        - Name: {project_info.get('project_name', 'Unknown')}
+        - Stage: {project_info.get('stage', 'Unknown')}
+        - Revenue Goal: {project_info.get('revenue_goal', 'Unknown')}
+        
+        Tailor your feedback to this specific project stage and goals.
+        """
+        chat.append({"role": "system", "content": project_context})
+    
+    for message in conversation_history:
+        chat.append(message)
+    
+    chat.append({"role": "user", "content": user_message})
+    
+    try:
+        response = model.generate_content([msg["content"] for msg in chat])
+        return response.text
+    except Exception as e:
+        logger.error(f"Error generating AI response: {e}")
+        return "Sorry, I'm having trouble connecting to my brain right now. Try again in a moment. 🤔"
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Start conversation with the user and ask for project name."""
     user = update.effective_user
     logger.info(f"User {user.id} ({user.username}) started the bot")
-    
     await update.message.reply_text(
         f"Welcome to Jeff Jr, your AI VC coach! 😎\nWhat's your project name? Be clear!"
     )
-    
     return NAME
 
-
 async def project_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Store project name and ask for project stage."""
     text = update.message.text
     user = update.effective_user
-    
-    # Store in context
     context.user_data["project_name"] = text
-    
     logger.info(f"User {user.id} entered project name: {text}")
-    
-    # Create inline keyboard for project stages
     keyboard = [
         [InlineKeyboardButton(stage, callback_data=stage)] for stage in STAGES
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    
     await update.message.reply_text(
         f"{text}, huh? Alright:\n- What stage is it at?",
         reply_markup=reply_markup
     )
-    
     return STAGE
 
-
 async def project_stage(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Store project stage and ask for revenue goals."""
     query = update.callback_query
     user = query.from_user
-    
-    # Get selected stage from callback data
     selected_stage = query.data
     context.user_data["stage"] = selected_stage
-    
     logger.info(f"User {user.id} selected stage: {selected_stage}")
-    
     await query.answer()
     await query.edit_message_text(
         f"A {selected_stage.lower()}-stage {context.user_data['project_name']}? Noted.\n\n"
         f"What's your revenue goal? Be specific or I'll assume you're not serious!"
     )
-    
     return REVENUE
 
-
 async def revenue_goal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Store revenue goal and save the project to the database."""
     text = update.message.text
     user = update.effective_user
-    
-    # Store in context
     context.user_data["revenue_goal"] = text
-    
     logger.info(f"User {user.id} entered revenue goal: {text}")
-    
-    # Save to database
     try:
         project_data = {
-            "user_id": user.id, 
+            "user_id": user.id,
             "username": user.username,
             "project_name": context.user_data["project_name"],
             "stage": context.user_data["stage"],
             "revenue_goal": text
         }
-        
         response = supabase.table("projects").insert(project_data).execute()
-        project_id = response.data[0]['id']
-        
-        # Store the project ID in context for conversation tracking
-        context.user_data["project_id"] = project_id
-        
-        # Store this initial conversation
+        project = response.data[0]
+        context.user_data["project_id"] = project['id']
         await store_conversation(
             user_id=user.id,
-            project_id=project_id,
-            message=f"My project is {context.user_data['project_name']} (Stage: {context.user_data['stage']}) with revenue goal: {text}",
+            project_id=project['id'],
+            message=f"My project is {project['project_name']} (Stage: {project['stage']}) with revenue goal: {project['revenue_goal']}",
             role="user"
         )
-        
-        # Get AI feedback based on the project details
-        ai_prompt = f"""
-        The user just told me about their project:
-        - Name: {context.user_data['project_name']}
-        - Stage: {context.user_data['stage']}
-        - Revenue Goal: {text}
-        
-        Provide a brief initial assessment and ask 2-3 probing questions about their business model or strategy.
-        """
-        
-        ai_response = await get_ai_response([], ai_prompt)
-        
-        # Store the AI response
+        ai_prompt = "The user has just provided their project details. Please provide an initial assessment and ask 2-3 relevant questions based on the project stage."
+        ai_response = await get_ai_response([], ai_prompt, project)
         await store_conversation(
             user_id=user.id,
-            project_id=project_id,
+            project_id=project['id'],
             message=ai_response,
             role="assistant"
         )
-        
         await update.message.reply_text(ai_response)
-        
     except Exception as e:
         logger.error(f"Error saving project: {e}")
         await update.message.reply_text(
             "There was an error saving your project. Please try again with /start."
         )
-    
     return FEEDBACK
 
-
 async def handle_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Handle ongoing conversation with the user."""
     user = update.effective_user
     text = update.message.text
-    
-    # Get project information
     project = await get_project_by_user_id(user.id)
     if not project:
         await update.message.reply_text(
             "I can't find your project data. Please start over with /start."
         )
         return ConversationHandler.END
-    
-    # Get conversation history
     conversation_history = await get_conversation_history(user.id)
-    
-    # Store user message
     await store_conversation(
         user_id=user.id,
         project_id=project['id'],
         message=text,
         role="user"
     )
-    
-    # Get AI response
     ai_response = await get_ai_response(conversation_history, text, project)
-    
-    # Store AI response
     await store_conversation(
         user_id=user.id,
         project_id=project['id'],
         message=ai_response,
         role="assistant"
     )
-    
     await update.message.reply_text(ai_response)
-    
     return FEEDBACK
 
-
 async def review(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Allow user to review their project details."""
     user = update.effective_user
-    
-    # Get project information
     project = await get_project_by_user_id(user.id)
-    
     if project:
         message = (
             f"Here's your project:\n"
@@ -387,12 +308,9 @@ async def review(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
     else:
         message = "You don't have a project yet. Start with /start to create one!"
-    
     await update.message.reply_text(message)
 
-
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Send a message when the command /help is issued."""
     help_text = (
         "I'm Jeff Jr, your AI VC coach! Here's how to use me:\n\n"
         "/start - Begin creating or updating your project\n"
@@ -404,24 +322,26 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     )
     await update.message.reply_text(help_text)
 
-
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Cancel and end the conversation."""
     await update.message.reply_text(
         "Operation cancelled. Use /start to begin again or /help for assistance."
     )
     return ConversationHandler.END
 
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    logger.error(f"Error: {context.error}")
+    if update and isinstance(update, Update) and update.effective_chat:
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text="An error occurred. Please try again or use /start to restart."
+        )
 
 def main() -> None:
     """Start the bot."""
-    # Create the Application
     application = Application.builder().token(os.environ["TELEGRAM_TOKEN"]).build()
     
-    # Initialize database
-    application.create_task(init_database())
+    application.add_error_handler(error_handler)
     
-    # Add conversation handler for project setup
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
         states={
@@ -434,14 +354,14 @@ def main() -> None:
     )
     
     application.add_handler(conv_handler)
-    
-    # Add command handlers
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("review", review))
     
+    # Initialize the database during startup (synchronously)
+    init_database()
+    
     # Start the Bot
     application.run_polling()
-
 
 if __name__ == "__main__":
     main()

@@ -83,7 +83,7 @@ def test_google_ai():
         genai.configure(api_key=api_key)
         
         # Simple test
-        model = genai.GenerativeModel("gemini-1.5-pro")
+        model = genai.GenerativeModel("gemini-2.0-flash")
         response = model.generate_content("Say hello!")
         
         print("✅ Successfully connected to Google AI API")
