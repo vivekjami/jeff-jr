@@ -1,29 +1,29 @@
 # Jeff Jr: AI Venture Capitalist Telegram Bot 🚀
 
-![Python](https://img.shields.io/badge/Python-3.9+-blue.svg) ![Telegram](https://img.shields.io/badge/Telegram-Bot_API-brightgreen.svg) ![SQLite](https://img.shields.io/badge/SQLite-Database-blue.svg) ![Hugging Face](https://img.shields.io/badge/Hugging_Face-AI-orange.svg) ![Railway](https://img.shields.io/badge/Railway-Deployed-purple.svg) ![Render](https://img.shields.io/badge/Render-Alternative-blue.svg)
+![Python](https://img.shields.io/badge/Python-3.9+-blue.svg) ![Telegram](https://img.shields.io/badge/Telegram-Bot_API-brightgreen.svg) ![Supabase](https://img.shields.io/badge/Supabase-Database-blue.svg) ![Google AI](https://img.shields.io/badge/Google-Gemini_AI-orange.svg) ![Railway](https://img.shields.io/badge/Railway-Deployed-purple.svg) ![Render](https://img.shields.io/badge/Render-Alternative-blue.svg)
 
-**Jeff Jr** is a Telegram bot that acts as a no-nonsense venture capitalist, guiding startup founders to refine their MVPs and revenue plans with blunt, constructive feedback. Built in just 15 hours, it demonstrates proficiency in Python, API integration, database management, and cloud deployment on free-tier platforms. Jeff Jr remembers user projects, asks tough questions, and provides actionable advice to stand out in the startup ecosystem.
+**Jeff Jr** is a Telegram bot that acts as a no-nonsense venture capitalist, guiding startup founders to refine their MVPs and revenue plans with blunt, constructive feedback. Built with Python, it demonstrates proficiency in API integration, database management, and cloud deployment. Jeff Jr remembers user projects, asks tough questions, and provides actionable advice to help startups stand out in the competitive ecosystem.
 
 ## 🎯 Project Goals
 - **Mentor Developers**: Helps users build market-ready MVPs with direct, no-sugarcoating feedback.
-- **Persistent Memory**: Stores user profiles and project details using SQLite or Supabase Postgres.
+- **Persistent Memory**: Stores user profiles and project details using Supabase Postgres.
 - **Unique Persona**: Delivers blunt yet professional critiques, informed by blockchain expertise.
-- **Scalable Design**: Supports ~30 concurrent users on free-tier Railway or Render.
+- **Scalable Design**: Supports concurrent users on free-tier Railway or Render.
 - **Portfolio Showcase**: Highlights skills in Python, bot development, and AI integration.
 
 ## ✨ Features
 - **Interactive Q&A**: Engages users via Telegram with probing questions (e.g., "What's your revenue model? Be specific!").
 - **Blunt Yet Polite Tone**: Challenges ideas firmly but professionally (e.g., "Your plan needs clarity. What's your edge?").
-- **Project Memory**: Saves project details (name, stage, revenue goals) in a database.
-- **AI-Powered Responses**: Uses Hugging Face’s free Inference API for context-aware replies.
+- **Project Memory**: Saves project details (name, stage, revenue goals) in Supabase database.
+- **AI-Powered Responses**: Uses Google's Gemini AI for context-aware replies.
 - **Review Command**: View saved project details with `/review`.
-- **Cloud Deployment**: Runs 24/7 on Railway or Render’s free tier.
+- **Cloud Deployment**: Runs 24/7 on Railway or Render's free tier.
 
 ## 🛠️ Tech Stack
 - **Python 3.9+**: Core programming language.
 - **python-telegram-bot**: Asynchronous library for Telegram Bot API.
-- **SQLite/Supabase Postgres**: Persistent storage for user and project data.
-- **Hugging Face Inference API**: Free-tier conversational AI.
+- **Supabase Postgres**: Persistent storage for user and project data.
+- **Google Gemini AI**: State-of-the-art conversational AI.
 - **Railway/Render**: Free-tier hosting for continuous operation.
 - **dotenv**: Secure management of API keys.
 
@@ -32,8 +32,8 @@
 ### Prerequisites
 - Python 3.9+ installed.
 - Telegram bot token from [BotFather](https://telegram.me/BotFather).
-- Hugging Face API key from [Hugging Face](https://huggingface.co/).
-- (Optional) Supabase account for Postgres database.
+- Google AI API key from [Google AI Studio](https://ai.google.dev/).
+- Supabase account with a project (the URL and key are already provided in the .env template).
 
 ### Installation
 1. **Clone the Repository**:
@@ -48,23 +48,15 @@
    pip install -r requirements.txt
    ```
 3. **Configure Environment Variables**:
-   - Create a `.env` file:
-     ```bash
-     echo -e "TELEGRAM_TOKEN=your_telegram_bot_token\nHF_API_KEY=your_hugging_face_api_key\nDATABASE_URL=sqlite:///projects.db" > .env
-     ```
-   - Replace `your_telegram_bot_token` with your @JeffJrBot token.
-   - Replace `your_hugging_face_api_key` with your Hugging Face API key.
-   - For Supabase Postgres, update `DATABASE_URL` with the provided connection string.
+   - Edit the `.env` file with your credentials:
+     - Add your Google AI API key
+     - Verify the Supabase URL and key
 
-4. **Initialize the Database**:
-   - SQLite auto-creates `projects.db` on first run.
-   - For Supabase, configure the Postgres connection (see deployment steps).
-
-5. **Run Locally**:
+4. **Run Locally**:
    ```bash
    python bot.py
    ```
-   Find `@JeffJrBot` on Telegram and start with `/start`.
+   Find your bot on Telegram using the handle you set up with BotFather and start with `/start`.
 
 ## 🌟 Usage
 - **Start**: Use `/start` to describe your project.
@@ -78,11 +70,11 @@
 **User**: CryptoWallet  
 **Jeff Jr**: CryptoWallet, huh? Alright:  
 - What stage is it at? (Idea, Development, Launched)  
-**User**: Idea  
-**Jeff Jr**: An idea-stage crypto wallet? Noted. What's your revenue goal? Be specific or I’ll assume you’re not serious!  
+**User**: (Taps "Idea" button)  
+**Jeff Jr**: An idea-stage crypto wallet? Noted. What's your revenue goal? Be specific or I'll assume you're not serious!  
 **User**: $10K/month via transaction fees  
-**Jeff Jr**: Saved. A crypto wallet with transaction fees? Let’s dig in:  
-- What’s your unique edge over MetaMask?  
+**Jeff Jr**: Saved. A crypto wallet with transaction fees? Let's dig in:  
+- What's your unique edge over MetaMask?  
 - Have you audited your smart contracts?  
 - How will you attract your first 100 users?  
 **User**: `/review`  
@@ -92,20 +84,20 @@
 - Revenue Goal: $10K/month via transaction fees  
 Need to refine it? Type `/start` or ask away!
 
-## � Προ Deployment
+## 🚢 Deployment
 Deploy Jeff Jr on **Railway** or **Render** for 24/7 operation:
 1. **Push to GitHub**:
    ```bash
    git init
    git add .
    git commit -m "Initial commit"
-   git remote add origin https://github.com/vivek-jami/jeff-jr.git
+   git remote add origin https://github.com/yourusername/jeff-jr.git
    git push origin main
    ```
 2. **Railway Deployment**:
    - Sign up at [Railway](https://railway.app/).
    - Create a new project, link your GitHub repo, and select the `jeff-jr` repository.
-   - Set environment variables: `TELEGRAM_TOKEN`, `HF_API_KEY`, `DATABASE_URL` (use `sqlite:///projects.db` or Supabase Postgres URL).
+   - Set environment variables from your `.env` file.
    - Set start command: `python bot.py`.
    - Deploy and check logs.
 
@@ -113,21 +105,43 @@ Deploy Jeff Jr on **Railway** or **Render** for 24/7 operation:
    - Sign up at [Render](https://render.com/).
    - Create a new Web Service, connect your GitHub repo, and select Python runtime.
    - Set start command: `python bot.py`.
-   - Add environment variables: `TELEGRAM_TOKEN`, `HF_API_KEY`, `DATABASE_URL`.
-   - Note: Render’s filesystem is ephemeral; use Supabase Postgres for persistence.
+   - Add environment variables from your `.env` file.
    - Deploy and monitor logs.
 
-## 🏆 Developer Skills Showcased
-- **Python Programming**: Clean, asynchronous bot logic with `python-telegram-bot`.
-- **AI Integration**: Prompt engineering with Hugging Face for a unique VC persona.
-- **Database Management**: SQLite/Supabase Postgres for persistent storage.
-- **Cloud Deployment**: Railway/Render setup with environment variables.
-- **Blockchain Context**: Informed by Solidity and Solana experience for crypto-related advice.
+## 🔍 Technical Details
 
-## 🔍 Challenges and Learnings
-- **Challenge**: Building a bot required rapid prioritization as this is relatively new to me.
-- **Solution**: Leveraged `python-telegram-bot` and SQLite for simplicity, with Supabase as a backup.
-- **Learning**: Mastered Telegram Bot API, async programming, and cloud deployment.
+### Database Schema
+The application uses two main tables in Supabase:
+
+1. **Projects Table**:
+   - `id`: Serial primary key
+   - `user_id`: Telegram user ID
+   - `username`: Telegram username (optional)
+   - `project_name`: Name of the startup project
+   - `stage`: Current stage (Idea, Development, Launched)
+   - `revenue_goal`: Financial targets and model
+   - `created_at`: Timestamp of creation
+   - `updated_at`: Timestamp of last update
+
+2. **Conversations Table**:
+   - `id`: Serial primary key
+   - `user_id`: Telegram user ID
+   - `project_id`: Foreign key to projects table
+   - `message`: The actual message content
+   - `role`: Either "user" or "assistant"
+   - `timestamp`: When the message was sent
+
+### AI Integration
+The bot uses Google's Gemini Pro model, which provides:
+- Context awareness through conversation history
+- Project-specific insights based on stored data
+- Natural, conversational responses with the Jeff Jr persona
+
+## 📝 Future Enhancements
+- **Analytics Dashboard**: Track user engagement and project progression.
+- **Multi-Project Support**: Allow users to manage multiple startup ideas.
+- **Expert Networks**: Connect founders with similar interests or complementary skills.
+- **Investment Simulation**: Gamified investment scenarios to test business model resilience.
 
 ## 👨‍💻 About the Developer
 Vivek Jami is a software engineer with expertise in Python, JavaScript, Solidity, and full-stack development. With hackathon wins (e.g., RollAppOraft, Solana Hackathon) and projects like SolStripe, I excel at building innovative solutions. Connect on [LinkedIn](https://linkedin.com/in/vivek-jami) or [GitHub](https://github.com/vivek-jami).
@@ -138,4 +152,4 @@ Reach out at j.vivekvams@gmail.com or open a GitHub issue for feedback or collab
 ---
 
 ⭐ **Star this repo** if Jeff Jr helped you refine your MVP!  
-💼 **Hiring?** This project showcases my ability to deliver under tight deadlines. Let’s talk!
+💼 **Hiring?** This project showcases my ability to deliver complete solutions. Let's talk!
