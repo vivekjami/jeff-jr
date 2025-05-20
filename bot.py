@@ -17,6 +17,7 @@ from telegram.ext import (
     ContextTypes,
 )
 from supabase import create_client, Client
+from aiohttp import web
 
 # Load environment variables
 load_dotenv()
@@ -31,7 +32,7 @@ logger = logging.getLogger(__name__)
 token = os.environ.get("TELEGRAM_TOKEN")
 logger.info(f"Loaded TELEGRAM_TOKEN: {token}")
 
-# Validate token format (must contain ':' to ensure bot ID is included)
+# Validate token format
 if not token or ":" not in token:
     logger.error("Invalid Telegram token format. Ensure it includes bot ID and hash (e.g., '123456:ABC-DEF').")
     exit(1)
@@ -336,32 +337,57 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
             text="An error occurred. Please try again or use /start to restart."
         )
 
-def main() -> None:
-    """Start the bot."""
+async def webhook_handler(request):
+    """Handle incoming Telegram webhook updates."""
+    update = await request.json()
+    await application.process_update(Update.de_json(update, application.bot))
+    return web.Response(text="OK")
+
+async def setup_webhook():
+    """Set up the Telegram webhook."""
+    # Replace with your Render app's public URL
+    webhook_url = f"https://{os.environ.get('RENDER_EXTERNAL_HOSTNAME')}/webhook"
+    await application.bot.set_webhook(url=webhook_url)
+    logger.info(f"Webhook set to {webhook_url}")
+
+async def start_webhook():
+    """Start the aiohttp web server for webhook."""
+    global application
     application = Application.builder().token(os.environ["TELEGRAM_TOKEN"]).build()
     
     application.add_error_handler(error_handler)
-    
-    conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("start", start)],
-        states={
-            NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, project_name)],
-            STAGE: [CallbackQueryHandler(project_stage)],
-            REVENUE: [MessageHandler(filters.TEXT & ~filters.COMMAND, revenue_goal)],
-            FEEDBACK: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_feedback)],
-        },
-        fallbacks=[CommandHandler("cancel", cancel)],
-    )
-    
     application.add_handler(conv_handler)
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("review", review))
     
-    # Initialize the database during startup (synchronously)
     init_database()
     
-    # Start the Bot
-    application.run_polling()
+    app = web.Application()
+    app.router.add_post('/webhook', webhook_handler)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, '0.0.0.0', int(os.environ.get("PORT", 8000)))
+    await site.start()
+    await setup_webhook()
+
+# Define ConversationHandler globally
+conv_handler = ConversationHandler(
+    entry_points=[CommandHandler("start", start)],
+    states={
+        NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, project_name)],
+        STAGE: [CallbackQueryHandler(project_stage)],
+        REVENUE: [MessageHandler(filters.TEXT & ~filters.COMMAND, revenue_goal)],
+        FEEDBACK: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_feedback)],
+    },
+    fallbacks=[CommandHandler("cancel", cancel)],
+)
+
+def main() -> None:
+    """Start the bot with webhook."""
+    import asyncio
+    asyncio.run(start_webhook())
+    # Keep the application running
+    asyncio.get_event_loop().run_forever()
 
 if __name__ == "__main__":
     main()
